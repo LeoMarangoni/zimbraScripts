@@ -16,7 +16,6 @@ parser.add_argument('-a', '--admin', action='store', dest='admin',
 parser.add_argument('-p', '--pass', action='store', dest='password',
                     help='Zimbra Admin Password String', required=True)
 parser.add_argument('-u', '--users', action='store', dest='users',
-                    default=['spam@test.com', 'ham@test.com'],
                     help='List of accounts to be monitored\
                     \n\tExample:\n--users spam@example.com or\
                     \n--users spam@example.com,ham@example.com,act...,',
