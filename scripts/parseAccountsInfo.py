@@ -1,10 +1,14 @@
-#!/usr/bin/python
+#!/usr/bin/python 
+# encoding=utf8
 
 import sys
 from pythonzimbra.tools import auth
 from pythonzimbra.communication import Communication
 import argparse
 from argparse import RawTextHelpFormatter
+
+reload(sys)
+sys.setdefaultencoding('utf8')
 
 parser = argparse.ArgumentParser(
     description='Authenticates as zimbra administrator and get the number of\
@@ -33,12 +37,13 @@ comm = Communication(url)
 
 
 def zimbraAtributes():
-    return ['displayName',
-            'zimbraAccountstatus',
+    return ['cn',
+            'displayName',
+            'zimbraAccountStatus',
             'zimbraCOSId',
             'zimbraIsAdminAccount',
             'zimbraPrefMailForwardingAddress',
-            'zimbraLastLogonTimeStamp']
+            'zimbraLastLogonTimestamp']
 
 
 def getAllInfo(url, adm, pword, domain):
@@ -71,13 +76,20 @@ def getAllInfo(url, adm, pword, domain):
 accountlist = []
 allInfo = getAllInfo(url, admin, password, domains[0])
 accresp = allInfo['GetAllAccountsResponse']['account']
-attrs = accresp[1]['a']
-
+line = "account"
+for i in zimbraAtributes():
+    line += ", %s" % (i)
+print (line)
 for account in accresp:
     line = account['name']
+    attrs = account['a']
     for i in zimbraAtributes():
         line += ","
         for x in attrs:
-            if str(i) == str(x.values()[1]):
+            if i.encode('utf-8') == x.values()[1].encode('utf-8'):
                 line += x.values()[0]
-    print line
+    print (line)
+
+# print allInfo
+print (accresp[1].keys())
+# print accresp[1]['a']['displayName']
