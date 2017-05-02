@@ -1,5 +1,10 @@
 #!/usr/bin/python
-# encoding=utf8
+
+"""
+In future will be implement a parameter to return in bytes, Kbytes,
+Mbytes and Gbytes view, but now I am feeling lazy.
+"""
+
 
 import sys
 from pythonzimbra.tools import auth
@@ -12,7 +17,7 @@ sys.setdefaultencoding('utf8')
 
 parser = argparse.ArgumentParser(
     description='Authenticates as zimbra administrator and returns a list\
-    \nof accounts and their attrs(previously defined on zimbraAtributes.',
+    \nof accounts and their quota usage.',
     formatter_class=RawTextHelpFormatter)
 parser.add_argument('-a', '--admin', action='store', dest='admin',
                     help='Zimbra Admin Account to authenticate on server',
@@ -33,71 +38,33 @@ password = argslist.password
 domain = argslist.domain
 comm = Communication(url)
 
-
-def multipleReplace(text, wordDict):
-    for key in wordDict:
-        text = text.replace(key, wordDict[key])
-    return text
-
-
-def zimbraAttributes():
-    return ['displayName',
-            'description',
-            'zimbraAccountStatus',
-            'zimbraCOSId',
-            'zimbraLastLogonTimestamp']
+archive = []
 
 
 def getAllInfo(url, adm, pword, domain):
     token = auth.authenticate(url, adm, pword, admin_auth=True)
-    request = comm.gen_request(token=token, set_batch=True)
+    request = comm.gen_request(token=token)
     request.add_request(
-        "GetAllCosRequest",
+        "GetQuotaUsageRequest",
         {
-        },
-        "urn:zimbraAdmin"
-    )
-    request.add_request(
-        "GetAllAccountsRequest",
-        {
-            "domain": {
-                "_content": domain,
-                "by": "name"
-            }
+            "domain": domain,
+            "allServers": "1"
         },
         "urn:zimbraAdmin"
     )
 
     response = comm.send_request(request)
     if not response.is_fault():
-        resp = [response.get_response(1), response.get_response(2)]
-        return resp
+        return response.get_response()['GetQuotaUsageResponse']['account']
     else:
         return "Error on zimbraAdmin: " + response.get_fault_message()
 
 
-accountlist = []
-allInfo = getAllInfo(url, admin, password, domain)
-accresp = allInfo[1]['GetAllAccountsResponse']['account']
-cosresp = allInfo[0]['GetAllCosResponse']['cos']
-cosdict = {}
-archive = []
-for cos in cosresp:
-    cosdict[cos['id']] = cos['name']
-
-line = "account"
-for i in zimbraAttributes():
-    line += ", %s" % (i)
-archive.append(line)
-for account in accresp:
-    line = account['name']
-    attrs = account['a']
-    for i in zimbraAttributes():
-        line += ","
-        for x in attrs:
-            if i.encode('utf-8') == x.values()[1].encode('utf-8'):
-                line += multipleReplace(x.values()[0], cosdict)
-    archive.append(line)
+for account in getAllInfo(url, admin, password, domain):
+    archive.append("%s,%i,%i" % (account['name'],
+                                 int(account['used'] / 1024 / 1024),
+                                 int(account['limit'] / 1024 / 1024))
+                   )
 
 archive = sorted(archive)
 print("\n".join(archive))
