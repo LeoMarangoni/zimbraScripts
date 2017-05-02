@@ -42,10 +42,9 @@ def multipleReplace(text, wordDict):
 
 def zimbraAttributes():
     return ['displayName',
+            'description',
             'zimbraAccountStatus',
             'zimbraCOSId',
-            'zimbraIsAdminAccount',
-            'zimbraPrefMailForwardingAddress',
             'zimbraLastLogonTimestamp']
 
 
@@ -82,14 +81,14 @@ allInfo = getAllInfo(url, admin, password, domains[0])
 accresp = allInfo[1]['GetAllAccountsResponse']['account']
 cosresp = allInfo[0]['GetAllCosResponse']['cos']
 cosdict = {}
-
+archive = []
 for cos in cosresp:
     cosdict[cos['id']] = cos['name']
 
 line = "account"
 for i in zimbraAttributes():
     line += ", %s" % (i)
-archive = line
+archive.append(line)
 for account in accresp:
     line = account['name']
     attrs = account['a']
@@ -98,6 +97,7 @@ for account in accresp:
         for x in attrs:
             if i.encode('utf-8') == x.values()[1].encode('utf-8'):
                 line += multipleReplace(x.values()[0], cosdict)
-    archive += "\n%s" % (line)
+    archive.append(line)
 
-print archive
+archive = sorted(archive)
+print("\n".join(archive))
