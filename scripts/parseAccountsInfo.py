@@ -73,7 +73,8 @@ def getAllInfo(url, adm, pword, domain):
         resp = [response.get_response(1), response.get_response(2)]
         return resp
     else:
-        return "Error on zimbraAdmin: " + response.get_fault_message()
+        print "Error on zimbraAdmin: " + str(response.get_fault_message())
+        sys.exit(3)
 
 
 accountlist = []
