@@ -2,10 +2,13 @@
 # encoding=utf8
 
 import sys
+from datetime import datetime
 from pythonzimbra.tools import auth
 from pythonzimbra.communication import Communication
 import argparse
 from argparse import RawTextHelpFormatter
+from modules import sendmail
+
 
 reload(sys)
 sys.setdefaultencoding('utf8')
@@ -24,6 +27,10 @@ parser.add_argument('-d', '--domain', action='store', dest='domain',
                     \n\tExample: \n--domain example.com', required=True)
 parser.add_argument('-H', '--host', action='store', dest='hostname',
                     help='webmail URL', required=True)
+parser.add_argument('-S', '--send-mail', dest='send_mail', nargs='+',
+                    metavar=('email', 'smtp-server'),
+                    help='Add this if you want to send output by email')
+
 
 argslist = parser.parse_args()
 
@@ -32,6 +39,7 @@ admin = argslist.admin
 password = argslist.password
 domain = argslist.domain
 comm = Communication(url)
+sendm = argslist.send_mail
 
 
 def multipleReplace(text, wordDict):
@@ -77,28 +85,58 @@ def getAllInfo(url, adm, pword, domain):
         sys.exit(3)
 
 
-accountlist = []
-allInfo = getAllInfo(url, admin, password, domain)
-accresp = allInfo[1]['GetAllAccountsResponse']['account']
-cosresp = allInfo[0]['GetAllCosResponse']['cos']
-cosdict = {}
-archive = []
-for cos in cosresp:
-    cosdict[cos['id']] = cos['name']
+def parseInfo():
+    allInfo = getAllInfo(url, admin, password, domain)
+    accresp = allInfo[1]['GetAllAccountsResponse']['account']
+    cosresp = allInfo[0]['GetAllCosResponse']['cos']
+    cosdict = {}
+    archive = []
+    for cos in cosresp:
+        cosdict[cos['id']] = cos['name']
 
-line = "account"
-for i in zimbraAttributes():
-    line += ", %s" % (i)
-archive.append(line)
-for account in accresp:
-    line = account['name']
-    attrs = account['a']
+    line = "account"
     for i in zimbraAttributes():
-        line += ","
-        for x in attrs:
-            if i.encode('utf-8') == x.values()[1].encode('utf-8'):
-                line += multipleReplace(x.values()[0], cosdict)
+        line += ", %s" % (i)
     archive.append(line)
+    for account in accresp:
+        line = account['name']
+        attrs = account['a']
+        for i in zimbraAttributes():
+            line += ","
+            for x in attrs:
+                if i.encode('utf-8') == x.values()[1].encode('utf-8'):
+                    line += multipleReplace(x.values()[0], cosdict)
+        archive.append(line)
 
-archive = sorted(archive)
-print("\n".join(archive))
+    archive = sorted(archive)
+    return("\n".join(archive))
+
+
+if sendm is not None:
+    try:
+        smtpserver = sendm[1]
+    except IndexError:
+        smtpserver = argslist.hostname
+    finally:
+        today = datetime.now().date()
+        subject = "Accounts List %s - %s" % (domain, today)
+        message = "Hello,\nSAttached is the list of accounts\
+                   of the domain %s" % (domain)
+        path = "/tmp/%s.csv" % (domain)
+        csv = open(path, "w")
+        csv.write(str(parseInfo()))
+        csv.close()
+        try:
+            sendmail.send_mail(admin,
+                               [sendm[0]],
+                               subject,
+                               message,
+                               server=smtpserver,
+                               user=admin,
+                               passw=password,
+                               files=[path])
+            print "List sent to %s, please check your mailbox" % (sendm[0])
+        except Exception as e:
+            print "%s, try to change smtp server" % e
+else:
+    print str(parseInfo())
